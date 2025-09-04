@@ -21,7 +21,7 @@ class BillofQuantities(Document):
         self.total_amount = total
     
 @frappe.whitelist()
-def create_quotation_from_boq(boq_name):
+def create_quotation_from(boq_name):
     boq_doc = frappe.get_doc("Bill of Quantities", boq_name)
     
     if boq_doc.status != 'Submitted':
@@ -30,7 +30,7 @@ def create_quotation_from_boq(boq_name):
     quotation = frappe.new_doc("Quotation")
     quotation.customer = boq_doc.customer
     quotation.quotation_to = "Customer"
-    quotation.boq_reference = boq_name
+    quotation.custom_boq_reference_link = boq_name
 
     for boq_item in boq_doc.boq_items:
         quotation.append("items", {
@@ -39,13 +39,12 @@ def create_quotation_from_boq(boq_name):
             "description": boq_item.description,
             "qty": boq_item.quantity,
             "rate": boq_item.rate,
-            "uom": boq_item.uom
+            "uom": boq_item.uom,
         })
     
     quotation.insert()
-
-    boq_doc.status = 'Quoted'
-    boq_doc.save()
+    frappe.db.set_value("Bill of Quantities", boq_name, "status", 'Quoted')
+    frappe.db.commit()
     
     return quotation.name
 
@@ -53,24 +52,23 @@ def create_quotation_from_boq(boq_name):
 def create_project_from_boq(boq_name):
     boq_doc = frappe.get_doc("Bill of Quantities", boq_name)
     sales_orders = frappe.get_all("Sales Order", 
-                                 filters={"boq_reference": boq_name, "docstatus": 1})
+                                 filters={"custom_boq_reference": boq_name, "docstatus": 1})
     
     if not sales_orders:
         frappe.throw("No submitted Sales Order found linked to this BOQ")
     
-    existing_project = frappe.get_all("Project", filters={"boq_reference": boq_name})
+    existing_project = frappe.get_all("Project", filters={"custom_boq_reference": boq_name})
     if existing_project:
         frappe.throw("Project already exists for this BOQ")
     
     project = frappe.new_doc("Project")
     project.project_name = boq_doc.title
     project.customer = boq_doc.customer
-    project.boq_reference = boq_name
+    project.custom_boq_reference = boq_name
     project.insert()
-    
     for boq_item in boq_doc.boq_items:
         task = frappe.new_doc("Task")
-        task.subject = boq_item.item_name
+        task.subject = boq_item.item_code
         task.project = project.name
         task.boq_quantity_needed = boq_item.quantity
         task.insert()

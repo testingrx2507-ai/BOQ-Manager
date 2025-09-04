@@ -12,7 +12,7 @@ doc_events = {
         "on_update": "boq_manager.boq_manager.doctype.bill_of_quantities_boq.bill_of_quantities_boq.calculate_total_amount"
     },
     "Sales Order": {
-        "after_insert": "boq_manager.boq_manager.custom.sales_order.copy_boq_reference"
+        "after_insert": "boq_manager.custom.sales_order.copy_boq_reference"
     }
 }
 # include js, css files in header of desk.html
